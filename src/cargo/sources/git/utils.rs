@@ -394,6 +394,8 @@ fn with_authentication<T, F>(url: &str, cfg: &git2::Config, mut f: F)
     let mut cred_helper = git2::CredentialHelper::new(url);
     cred_helper.config(cfg);
 
+    println!("with_authentication({})", url);
+
     let mut ssh_username_requested = false;
     let mut cred_helper_bad = None;
     let mut ssh_agent_attempts = Vec::new();
@@ -437,6 +439,7 @@ fn with_authentication<T, F>(url: &str, cfg: &git2::Config, mut f: F)
             let username = username.unwrap();
             debug_assert!(!ssh_username_requested);
             ssh_agent_attempts.push(username.to_string());
+            println!("ssh_key_from_agent (initial)");
             return git2::Cred::ssh_key_from_agent(&username)
         }
 
@@ -460,6 +463,7 @@ fn with_authentication<T, F>(url: &str, cfg: &git2::Config, mut f: F)
         // Whelp, we tried our best
         Err(git2::Error::from_str("no authentication available"))
     });
+    println!("first attempt is_err={}", res.is_err());
 
     // Ok, so if it looks like we're going to be doing ssh authentication, we
     // want to try a few different usernames as one wasn't specified in the URL
@@ -484,6 +488,7 @@ fn with_authentication<T, F>(url: &str, cfg: &git2::Config, mut f: F)
         }
 
         while let Some(s) = attempts.pop() {
+            println!("Some({})", s);
             // We should get `USERNAME` first, where we just return our attempt,
             // and then after that we should get `SSH_KEY`. If the first attempt
             // fails we'll get called again, but we don't have another option so
@@ -496,6 +501,7 @@ fn with_authentication<T, F>(url: &str, cfg: &git2::Config, mut f: F)
                 if allowed.contains(git2::SSH_KEY) {
                     debug_assert_eq!(Some(&s[..]), username);
                     attempts += 1;
+                    println!("ssh_key_from_agent attempts={}", attempts);
                     if attempts == 1 {
                         ssh_agent_attempts.push(s.to_string());
                         return git2::Cred::ssh_key_from_agent(&s)
